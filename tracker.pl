@@ -4,64 +4,51 @@ use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
 
 $| = 1;
-
-my $OAuth = do 'oauth.pl' or die $!;
-
+my $OAuth  = do 'oauth.pl' or die $!;
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
-my $on_entry = sub {
+while (1) {
+    my $done = AE::cv;
+
+    print Dumper [scalar localtime, 'start connecting'];
+    my $client = AnyEvent::FriendFeed::Realtime->new(
+        request    => "/feed/cpan",
+        on_entry   => \&on_entry,
+        on_error   => sub { print Dumper [scalar localtime, \@_]; $done->send; },
+    );
+    print Dumper [scalar localtime, 'recv'];
+    $done->recv;
+}
+
+sub on_entry {
     my $entry = shift;
 
     if ($entry->{body} =~ m{^(.+) by (.+) - <a rel="nofollow" href="([^"]+)}) {
         my ($package, $author, $url) = ($1, $2, $3);
 
         if ($url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}) {
-            my ($id, $file) = ($1, $2);
+            my $id   = lc $1;
+            my $file = $2;
 
-            my $string = sprintf "%s by %s - http://frepan.64p.org/~%s/%s/", $package, $author, lc $id, $file;
-            say $string;
+            my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
             $twitty->request(method => 'POST', api => 'statuses/update',
-                params => {status => $string}, sub {print Dumper \@_});
+                params => {status => $string}, sub {
+                    print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
+                    $twitty->request(method => 'POST', api => 'statuses/update',
+                        params => {status => '@punytan error: post'}, sub {print Dumper \@_})});
 
         } else {
-            print Dumper ['error: parse url', $entry, [$package, $author, $url]];
+            print Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
             $twitty->request(method => 'POST', api => 'statuses/update',
                 params => {status => '@punytan error: parse url'}, sub {print Dumper \@_});
         }
 
     } else {
-        print Dumper ['error: parse body', $entry];
+        print Dumper [scalar localtime, 'error: parse body', $entry];
         $twitty->request(method => 'POST', api => 'statuses/update',
             params => {status => '@punytan error: parse body'}, sub {print Dumper \@_});
     }
 };
 
-=testing stuff
-my @list = (
-    {body => 'Test-Magpie 0.05 by Oliver Charles - <a rel="nofollow" href="http://cpan.cpantesters.org/authors/id/C/CY/CYCLES/Test-Magpie-0.05.tar.gz" title="http://cpan.cpantesters.org/authors/id/C/CY/CYCLES/Test-Magpie-0.05.tar.gz">http://cpan.cpantesters.org/authors...</a>'},
-    {body => 'Encode-Locale 0.03 by Gisle Aas - <a rel="nofollow" href="http://cpan.cpantesters.org/authors/id/G/GA/GAAS/Encode-Locale-0.03.tar.gz" title="http://cpan.cpantesters.org/authors/id/G/GA/GAAS/Encode-Locale-0.03.tar.gz">http://cpan.cpantesters.org/authors...</a>'},
-    {body => 'Encode-Locale <a rel="nofollow" href="htt</a>'},
-    {body => 'Encode-Locale 0.03 by Gisle Aas - <a rel="nofollow" href="http://cpan.cpantesters.org/authors/id/G/GA/GAAS/Encode-Locale-0.03.tar"'},
-);
-
-for (@list) {
-    $on_entry->($_);
-}
-=cut
-
-while (1) {
-    my $done = AnyEvent->condvar; 
-
-    say 'start connecting';
-    my $client = AnyEvent::FriendFeed::Realtime->new(
-        request    => "/feed/cpan",
-        on_entry   => $on_entry,
-        on_error   => sub { print Dumper \@_; $done->send; },
-    );
-
-    say 'recv';
-    $done->recv;
-}
-
-
+__END__
 
