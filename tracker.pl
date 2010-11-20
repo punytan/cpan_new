@@ -36,7 +36,7 @@ my $on_entry = sub {
     }
 };
 
-=testign stuff
+=testing stuff
 my @list = (
     {body => 'Test-Magpie 0.05 by Oliver Charles - <a rel="nofollow" href="http://cpan.cpantesters.org/authors/id/C/CY/CYCLES/Test-Magpie-0.05.tar.gz" title="http://cpan.cpantesters.org/authors/id/C/CY/CYCLES/Test-Magpie-0.05.tar.gz">http://cpan.cpantesters.org/authors...</a>'},
     {body => 'Encode-Locale 0.03 by Gisle Aas - <a rel="nofollow" href="http://cpan.cpantesters.org/authors/id/G/GA/GAAS/Encode-Locale-0.03.tar.gz" title="http://cpan.cpantesters.org/authors/id/G/GA/GAAS/Encode-Locale-0.03.tar.gz">http://cpan.cpantesters.org/authors...</a>'},
