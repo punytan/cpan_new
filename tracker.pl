@@ -34,8 +34,10 @@ sub on_entry {
             $twitty->request(method => 'POST', api => 'statuses/update',
                 params => {status => $string}, sub {
                     print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
-                    $twitty->request(method => 'POST', api => 'statuses/update',
-                        params => {status => '@punytan error: post'}, sub {print Dumper \@_})});
+                    unless ($_[0]) {
+                        $twitty->request(method => 'POST', api => 'statuses/update',
+                            params => {status => '@punytan error: post'}, sub {
+                                print Dumper \@_})}});
 
         } else {
             print Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
