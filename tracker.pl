@@ -31,24 +31,19 @@ sub on_entry {
             my $file = $2;
 
             my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
-            $twitty->request(method => 'POST', api => 'statuses/update',
-                params => {status => $string}, sub {
-                    print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
-                    unless ($_[0]) {
-                        $twitty->request(method => 'POST', api => 'statuses/update',
-                            params => {status => '@punytan error: post'}, sub {
-                                print Dumper \@_})}});
+            $twitty->post('statuses/update', {status => $string}, sub {
+                print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
+                $_[1] ? undef : $twitty->post('statuses/update', {status => '@punytan error: post ' . time}, sub { print Dumper \@_});
+            });
 
         } else {
             print Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
-            $twitty->request(method => 'POST', api => 'statuses/update',
-                params => {status => '@punytan error: parse url'}, sub {print Dumper \@_});
+            $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {print Dumper \@_});
         }
 
     } else {
         print Dumper [scalar localtime, 'error: parse body', $entry];
-        $twitty->request(method => 'POST', api => 'statuses/update',
-            params => {status => '@punytan error: parse body'}, sub {print Dumper \@_});
+        $twitty->post('statuses/update', {status => '@punytan error: parse body ' . time}, sub {print Dumper \@_});
     }
 };
 
