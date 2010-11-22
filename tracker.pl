@@ -35,18 +35,18 @@ sub on_entry {
                 $twitty->post('statuses/update', {status => $string}, sub {
                     print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
                     $_[1] ? undef : $twitty->post('statuses/update', {
-                        status => '@punytan error: post ' . time}, sub { print Dumper [time, $_[2]]});
+                        status => '@punytan error: post ' . time}, sub {print Dumper [time, $_[2]]});
                 });
             };
 
         } else {
             print Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
-            $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {print Dumper \@_});
+            $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {print Dumper [time, $_[2]]});
         }
 
     } else {
         print Dumper [scalar localtime, 'error: parse body', $entry];
-        $twitty->post('statuses/update', {status => '@punytan error: parse body ' . time}, sub {print Dumper \@_});
+        $twitty->post('statuses/update', {status => '@punytan error: parse body ' . time}, sub {print Dumper [time, $_[2]]});
     }
 };
 
