@@ -15,11 +15,7 @@ while (1) {
         request    => "/feed/cpan",
         on_entry   => sub {
             my @args = @_;
-            my $w; $w = AE::timer 5, 0, sub {
-                print Dumper ['on entry', \@args];
-                on_entry(@args);
-                undef $w;
-            }
+            my $w; $w = AE::timer 5, 0, sub { on_entry(@args); undef $w; }
         },
         on_error   => sub { print Dumper [scalar localtime, \@_]; $done->send; },
     );
@@ -37,7 +33,7 @@ sub on_entry {
             my $id   = lc $1;
             my $file = $2;
 
-            my $string = "\@punytan $package by $author - http://frepan.64p.org/~$id/$file/";
+            my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
             $twitty->post('statuses/update', {status => $string}, sub {
                 print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
                 $_[1] ? undef : $twitty->post('statuses/update', {
