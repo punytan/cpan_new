@@ -3,7 +3,7 @@ use Data::Dumper;
 use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
 
-$| = 1;
+local $| = 1;
 my $OAuth  = do 'oauth.pl' or die $!;
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
