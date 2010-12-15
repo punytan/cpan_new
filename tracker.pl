@@ -37,7 +37,7 @@ sub on_entry {
             $twitty->post('statuses/update', {status => $string}, sub {
                 print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
                 $_[1] ? undef : $twitty->post('statuses/update', {
-                    status => '@punytan error: post ' . time}, sub {print Dumper [time, $_[2]]});
+                    status => sprintf '@punytan error: "%s" post %s', $_[2], time}, sub {print Dumper [time, $_[2]]});
             });
 
         } else {
