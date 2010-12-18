@@ -34,10 +34,20 @@ sub on_entry {
             my $file = $2;
 
             my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
+
             $twitty->post('statuses/update', {status => $string}, sub {
                 print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
-                $_[1] ? undef : $twitty->post('statuses/update', {
-                    status => sprintf '@punytan error: "%s" post %s', $_[2], time}, sub {print Dumper [time, $_[2]]});
+
+                unless ($_[1]) { # retry
+                    $twitty->post('statuses/update', {status => $string}, sub {
+                        unless ($_[1]) { # on error
+                            my $error_msg = sprintf '@punytan error: "%s" post %s', $_[2], time;
+                            $twitty->post('statuses/update', {status => $error_msg}, sub {
+                                print Dumper [time, $_[2]];
+                            })
+                        }
+                    });
+                }
             });
 
         } else {
