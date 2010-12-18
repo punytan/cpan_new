@@ -40,12 +40,14 @@ sub on_entry {
 
                 unless ($_[1]) { # retry
                     $twitty->post('statuses/update', {status => $string}, sub {
+=pod
                         unless ($_[1]) { # on error
                             my $error_msg = sprintf '@punytan error: "%s" post %s', $_[2], time;
                             $twitty->post('statuses/update', {status => $error_msg}, sub {
                                 print Dumper [time, $_[2]];
                             })
                         }
+=cut
                     });
                 }
             });
