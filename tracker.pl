@@ -33,6 +33,10 @@ sub on_entry {
             my $id   = lc $1;
             my $file = $2;
 
+            if ($file =~ m{.*/(.*)$}) {
+                $file = $1;
+            }
+
             my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
 
             $twitty->post('statuses/update', {status => $string}, sub {
