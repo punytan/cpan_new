@@ -37,7 +37,7 @@ sub on_entry {
                 $file = $1;
             }
 
-            my $string = "$package by $author - http://frepan.64p.org/~$id/$file/";
+            my $string = "$package by $author - http://frepan.org/~$id/$file/";
 
             $twitty->post('statuses/update', {status => $string}, sub {
                 print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
