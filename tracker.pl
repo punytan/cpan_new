@@ -1,4 +1,4 @@
-use common::sense;
+use practical;
 use Data::Dumper;
 use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
