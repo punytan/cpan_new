@@ -1,4 +1,4 @@
 #!/bin/sh
 
-perl tracker.pl >> .log 2>&1 &
+perl tracker.pl > log.std 2> log.err &
 
