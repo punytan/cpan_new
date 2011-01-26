@@ -30,6 +30,7 @@ sub on_entry {
         my ($package, $author, $url) = ($1, $2, $3);
 
         if ($url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}) {
+            my $pauseid = $1;
             my $id   = lc $1;
             my $file = $2;
 
@@ -37,7 +38,7 @@ sub on_entry {
                 $file = $1;
             }
 
-            my $string = "$package by $author - http://frepan.org/~$id/$file/";
+            my $string = "$package by $pauseid - http://frepan.org/~$id/$file/";
 
             $twitty->post('statuses/update', {status => $string}, sub {
                 print Dumper [scalar localtime, $_[1] ? $_[1]->{text} : \@_];
