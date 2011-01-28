@@ -12,12 +12,18 @@ while (1) {
 
     warn Dumper [scalar localtime, 'start connecting'];
     my $client = AnyEvent::FriendFeed::Realtime->new(
-        request    => "/feed/cpan",
-        on_entry   => sub {
+        request  => "/feed/cpan",
+        on_entry => sub {
             my @args = @_;
-            my $w; $w = AE::timer 5, 0, sub { on_entry(@args); undef $w; }
+            my $w; $w = AE::timer 5, 0, sub {
+                on_entry(@args);
+                undef $w;
+            };
         },
-        on_error   => sub { warn Dumper [scalar localtime, \@_]; $done->send; },
+        on_error => sub {
+            warn Dumper [scalar localtime, \@_];
+            $done->send;
+        },
     );
     warn Dumper [scalar localtime, 'recv'];
     $done->recv;
@@ -30,9 +36,7 @@ sub on_entry {
         my ($package, $author, $url) = ($1, $2, $3);
 
         if ($url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}) {
-            my $pauseid = $1;
-            my $id   = lc $1;
-            my $file = $2;
+            my ($pauseid, $id, $file) = ($1, lc($1), $2);
 
             if ($file =~ m{.*/(.*)$}) {
                 $file = $1;
