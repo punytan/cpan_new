@@ -10,16 +10,16 @@ my $twitty = AnyEvent::Twitter->new(%$OAuth);
 while (1) {
     my $done = AE::cv;
 
-    print Dumper [scalar localtime, 'start connecting'];
+    warn Dumper [scalar localtime, 'start connecting'];
     my $client = AnyEvent::FriendFeed::Realtime->new(
         request    => "/feed/cpan",
         on_entry   => sub {
             my @args = @_;
             my $w; $w = AE::timer 5, 0, sub { on_entry(@args); undef $w; }
         },
-        on_error   => sub { print Dumper [scalar localtime, \@_]; $done->send; },
+        on_error   => sub { warn Dumper [scalar localtime, \@_]; $done->send; },
     );
-    print Dumper [scalar localtime, 'recv'];
+    warn Dumper [scalar localtime, 'recv'];
     $done->recv;
 }
 
@@ -45,26 +45,18 @@ sub on_entry {
 
                 unless ($_[1]) { # retry
                     $twitty->post('statuses/update', {status => $string}, sub {
-=pod
-                        unless ($_[1]) { # on error
-                            my $error_msg = sprintf '@punytan error: "%s" post %s', $_[2], time;
-                            $twitty->post('statuses/update', {status => $error_msg}, sub {
-                                print Dumper [time, $_[2]];
-                            })
-                        }
-=cut
                     });
                 }
             });
 
         } else {
-            print Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
-            $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {print Dumper [time, $_[2]]});
+            warn Dumper [scalar localtime, 'error: parse url', $entry, [$package, $author, $url]];
+            $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {warn Dumper [time, $_[2]]});
         }
 
     } else {
-        print Dumper [scalar localtime, 'error: parse body', $entry];
-        $twitty->post('statuses/update', {status => '@punytan error: parse body ' . time}, sub {print Dumper [time, $_[2]]});
+        warn Dumper [scalar localtime, 'error: parse body', $entry];
+        $twitty->post('statuses/update', {status => '@punytan error: parse body ' . time}, sub {warn Dumper [time, $_[2]]});
     }
 };
 
