@@ -1,6 +1,8 @@
 use practical;
 use Data::Dumper;
+use JSON;
 use AnyEvent;
+use AnyEvent::HTTP;
 use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
 
@@ -24,19 +26,8 @@ while (1) {
     );
 
     my $qwatcher; $qwatcher = AE::timer 5, 300, sub {
-        my @q = @Q;
-        while (my $string = shift @Q) {
-            print Dumper [$string];
-            $twitty->post('statuses/update', {status => $string}, sub {
-                if ($_[1]) {
-                    print Dumper [&now, $_[1]->{text}];
-                } else {
-                    warn Dumper [&now, \@_];
-                    push @q, $string; # on error, push it to queue
-                }
-            });
-        }
-        push @Q, @q;
+        my $string = shift @Q;
+        _tweet($string) if $string;
     };
 
     warn Dumper [&now, 'recv'];
@@ -58,16 +49,27 @@ sub on_entry {
                 $file = $1;
             }
 
-            my $string = "$package by $pauseid - http://frepan.org/~$id/$file/";
+            my $frepan_url = sprintf 'http://frepan.org/~%s/%s/', $id, $file;
 
-            $twitty->post('statuses/update', {status => $string}, sub {
-                if ($_[1]) {
-                    print Dumper [&now, $_[1]->{text}];
-                } else {
-                    warn Dumper [&now, \@_];
-                    push @Q, $string; # on error, push it to queue
-                }
-            });
+            my $string = sprintf "%s by %s - %s", $package, $pauseid, $frepan_url;
+
+            if (length $string > 140) {
+                my %params = (
+                    login   => 'cpannew',
+                    apiKey  => 'R_b593e932246cfbe5625ec2ebb16647fc',
+                    format  => 'json',
+                    longUrl => $frepan_url,
+                );
+
+                AnyEvent::HTTP::http_get "http://api.bitly.com/v3/shorten", %params, sub {
+                    my $json   = JSON::decode_json(shift);
+                    my $string = sprintf "%s by %s - %s", $package, $pauseid, $json->{data}{url};
+                    _tweet($string);
+                };
+
+            } else {
+                _tweet($string);
+            }
 
         } else {
             $twitty->post('statuses/update', {status => '@punytan error: parse url ' . time}, sub {
@@ -81,6 +83,18 @@ sub on_entry {
         });
     }
 };
+
+sub _tweet {
+    my $string = shift;
+    $twitty->post('statuses/update', {status => $string}, sub {
+        if ($_[1]) {
+            print Dumper [&now, "Send: $string", "Receive: $_[1]->{text}"];
+        } else {
+            warn Dumper [&now, "Send: $string", \@_];
+            push @Q, $string; # on error, push it to queue
+        }
+    });
+}
 
 __END__
 
