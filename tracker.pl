@@ -49,7 +49,7 @@ sub on_entry {
                 $file = $1;
             }
 
-            my $frepan_url = sprintf 'http://frepan.org/~%s/%s/', $id, $file;
+            my $frepan_url = sprintf 'http://metacpan.org/release/%s/%s/', uc($id), $file;
 
             my $string = sprintf "%s by %s - %s", $package, $pauseid, $frepan_url;
 
