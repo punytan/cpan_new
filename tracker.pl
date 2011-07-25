@@ -19,10 +19,17 @@ my $w; $w = AE::timer 1, 10, sub {
     $CLIENT = AnyEvent::FriendFeed::Realtime->new(
         request  => "/feed/cpan",
         on_entry => sub {
-            on_entry(@_);
+            if (my $error = on_entry(@_)) {
+                $twitty->post('statuses/update', {
+                    status => sprintf '@punytan error: %s (%s)', $error, time
+                }, sub {
+                    warn Dumper [ AE::now, [ @_ ] ];
+                });
+            }
         },
         on_error => sub {
             warn Dumper [AE::now, \@_];
+            undef $CLIENT;
         },
     );
 };
@@ -39,53 +46,67 @@ AE::cv->recv;
 sub on_entry {
     my $entry = shift;
 
-    if ($entry->{body} =~ m{^(.+) by (.+) - <a rel="nofollow" href="([^"]+)}) {
-        my ($package, $author, $url) = ($1, $2, $3);
+    my %params = parse_body($entry)
+        or return 'ParseError';
 
-        if ($url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}) {
-            my ($pauseid, $id, $file) = ($1, lc($1), $2);
+    %params = construct_status(%params);
 
-            if ($file =~ m{.*/(.*)$}) {
-                $file = $1;
-            }
-
-            my $metacpan = sprintf 'http://metacpan.org/release/%s/%s/', uc($id), $file;
-            my $string   = sprintf "%s by %s - %s", $package, $pauseid, $metacpan;
-
-            if (length $string > 140) {
-                my %params = (
-                    login   => 'cpannew',
-                    apiKey  => 'R_b593e932246cfbe5625ec2ebb16647fc',
-                    format  => 'json',
-                    longUrl => $metacpan,
-                );
-
-                AnyEvent::HTTP::http_get "http://api.bitly.com/v3/shorten", %params, sub {
-                    my $json   = JSON::decode_json(shift);
-                    my $string = sprintf "%s by %s - %s", $package, $pauseid, $json->{data}{url};
-                    tweet($string);
-                };
-
-            } else {
-                tweet($string);
-            }
-
-        } else {
-            $twitty->post('statuses/update', {
-                status => '@punytan error: parse url ' . time
-            }, sub {
-                warn Dumper [AE::now, 'error: parse url', $entry, [$package, $author, $url], [ time, $_[2] ]];
-            });
-        }
-
-    } else {
-        $twitty->post('statuses/update', {
-            status => '@punytan error: parse body ' . time
-        }, sub {
-            warn Dumper [AE::now, 'error: parse body', $entry, [ time, $_[2] ]];
-        });
+    if (length $params{string} < 140) {
+        tweet($params{string});
+        return;
     }
-};
+
+    my %query = (
+        login   => 'cpannew',
+        apiKey  => 'R_b593e932246cfbe5625ec2ebb16647fc',
+        format  => 'json',
+        longUrl => $params{metacpan},
+    );
+
+    AnyEvent::HTTP::http_get "http://api.bitly.com/v3/shorten", %query, sub {
+        my $json   = JSON::decode_json(shift);
+        my $string = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $json->{data}{url};
+        tweet($string);
+    };
+}
+
+sub parse_body {
+    my $entry = shift;
+
+    my ($package, $author, $url) = $entry->{body} =~ m{^(.+) by (.+) - <a rel="nofollow" href="([^"]+)}
+        or return;
+
+    my ($pauseid, $file) = $url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}
+        or return;
+
+    my $id = lc $pauseid;
+
+    if ($file =~ m{.*/(.*)$}) {
+        $file = $1;
+    }
+
+    return (
+        package => $package,
+        author  => $author,
+        url     => $url,
+        pauseid => $pauseid,
+        id      => $id,
+        file    => $file,
+    );
+}
+
+sub construct_status {
+    my %params = @_;
+
+    my $metacpan = sprintf 'http://metacpan.org/release/%s/%s/', $params{pauseid}, $params{file};
+    my $string   = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $metacpan;
+
+    return (
+        %params,
+        metacpan => $metacpan,
+        string   => $string,
+    );
+}
 
 sub tweet {
     my $string = shift;
