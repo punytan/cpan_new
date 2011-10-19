@@ -12,7 +12,7 @@ local $| = 1;
 my $OAuth  = config_get "cpan_new.twitter.com";
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
-our ($CONN, $CLIENT);
+our $CLIENT;
 my $w; $w = AE::timer 1, 10, sub {
     return if $CLIENT->{guard};
 
@@ -69,6 +69,8 @@ sub on_entry {
         my $string = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $json->{data}{url};
         tweet($string);
     };
+
+    return;
 }
 
 sub parse_body {
