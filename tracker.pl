@@ -5,10 +5,11 @@ use AnyEvent;
 use AnyEvent::HTTP;
 use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
+use Config::PP;
 our @Q;
 
 local $| = 1;
-my $OAuth  = do 'oauth.pl' or die $!;
+my $OAuth  = config_get "cpan_new.twitter.com";
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
 our ($CONN, $CLIENT);
