@@ -58,6 +58,8 @@ sub on_entry {
     my $string = construct_status(%params)->{string};
 
     tweet($string);
+
+    return;
 }
 
 sub parse_body {
