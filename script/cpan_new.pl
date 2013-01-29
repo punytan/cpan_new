@@ -1,4 +1,5 @@
-use practical;
+use strict;
+use warnings;
 use Data::Dumper;
 use JSON;
 use AnyEvent;
@@ -6,30 +7,32 @@ use AnyEvent::HTTP;
 use AnyEvent::Twitter;
 use AnyEvent::FriendFeed::Realtime;
 use Config::PP;
+use AnyEvent::Log;
+use EV;
+$AnyEvent::Log::FILTER->level ("info");
+
 our @Q;
 
 local $| = 1;
-my $OAuth  = config_get "cpan_new.twitter.com";
+my $OAuth  = config_get "cpan_new/twitter.com";
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
 our $CLIENT;
 my $w; $w = AE::timer 1, 10, sub {
     return if $CLIENT->{guard};
 
-    warn Dumper [AE::now, 'start connecting'];
+    AE::log info => 'start connecting';
     $CLIENT = AnyEvent::FriendFeed::Realtime->new(
         request  => "/feed/cpan",
         on_entry => sub {
             if (my $error = on_entry(@_)) {
-                $twitty->post('statuses/update', {
-                    status => sprintf '@punytan error: %s (%s)', $error, time
-                }, sub {
-                    warn Dumper [ AE::now, [ @_ ] ];
+                $twitty->post('statuses/update', { status => sprintf '@punytan error: %s (%s)', $error, time }, sub {
+                    AE::log info => Dumper [ @_ ];
                 });
             }
         },
         on_error => sub {
-            warn Dumper [AE::now, \@_];
+            AE::log info => Dumper [@_];
             undef $CLIENT;
         },
     );
@@ -40,7 +43,7 @@ my $qwatcher; $qwatcher = AE::timer 5, 300, sub {
     tweet($string) if $string;
 };
 
-warn Dumper [AE::now, 'recv'];
+AE::log info => 'recv';
 
 AE::cv->recv;
 
@@ -50,27 +53,9 @@ sub on_entry {
     my %params = parse_body($entry)
         or return 'ParseError';
 
-    %params = construct_status(%params);
+    my $string = construct_status(%params)->{string};
 
-    if (length $params{string} < 140) {
-        tweet($params{string});
-        return;
-    }
-
-    my %query = (
-        login   => 'cpannew',
-        apiKey  => 'R_b593e932246cfbe5625ec2ebb16647fc',
-        format  => 'json',
-        longUrl => $params{metacpan},
-    );
-
-    AnyEvent::HTTP::http_get "http://api.bitly.com/v3/shorten", %query, sub {
-        my $json   = JSON::decode_json(shift);
-        my $string = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $json->{data}{url};
-        tweet($string);
-    };
-
-    return;
+    tweet($string);
 }
 
 sub parse_body {
@@ -104,22 +89,20 @@ sub construct_status {
     my $metacpan = sprintf 'http://metacpan.org/release/%s/%s/', $params{pauseid}, $params{file};
     my $string   = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $metacpan;
 
-    return (
+    return {
         %params,
         metacpan => $metacpan,
         string   => $string,
-    );
+    };
 }
 
 sub tweet {
     my $string = shift;
-    $twitty->post('statuses/update', {
-        status => $string
-    }, sub {
+    $twitty->post('statuses/update', { status => $string }, sub {
         if ($_[1]) {
-            print Dumper [AE::now, "Send: $string", "Receive: $_[1]->{text}"];
+            AE::log info => "Send: $string; Receive: $_[1]->{text}";
         } else {
-            warn Dumper [AE::now, "Send: $string", \@_];
+            AE::log warn => "Send: $string " . Dumper [@_];
             push @Q, $string; # on error, push it to queue
         }
     });
