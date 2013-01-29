@@ -9,12 +9,14 @@ use AnyEvent::FriendFeed::Realtime;
 use Config::PP;
 use AnyEvent::Log;
 use EV;
-$AnyEvent::Log::FILTER->level ("info");
-
+use Getopt::Long;
+$AnyEvent::Log::FILTER->level("info");
 our @Q;
 
-local $| = 1;
-my $OAuth  = config_get "cpan_new/twitter.com";
+GetOptions('config-dir=s' => \$Config::PP::DIR)
+    or die "Invalid arguments";
+
+my $OAuth  = config_get "cpan_new.twitter.com";
 my $twitty = AnyEvent::Twitter->new(%$OAuth);
 
 our $CLIENT;
