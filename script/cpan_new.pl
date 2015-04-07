@@ -37,15 +37,7 @@ my $w; $w = AE::timer 1, 30, sub {
             my $item_timestamp = Time::Piece->strptime($item->{'dc:date'}, '%Y-%m-%dT%H:%M:%SZ')->epoch;
             next if LATEST_TIMESTAMP() >= $item_timestamp;
             LATEST_TIMESTAMP($item_timestamp);
-
-            my ($namespace, $version) = do {
-                my @dist      = split /-/, $item->{title};
-                my $version   = pop @dist;
-                my $namespace = join "::", @dist;
-                ($namespace, $version)
-            };
-
-            tweet("$namespace $version by $item->{'dc:creator'} $item->{link}");
+            tweet("$item->{title} by $item->{'dc:creator'} $item->{link}");
         }
 
     }
