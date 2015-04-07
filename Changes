@@ -1,4 +1,7 @@
 Revision history for Perl extension App::Twitter::CPAN
 
+0.02    Tue Apr  7 03:21:48 2015
+        - deprecate friendfeed
+
 0.01    Tue Jan 29 01:38:43 2013
         - original version
