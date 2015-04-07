@@ -35,7 +35,7 @@ my $w; $w = AE::timer 1, 30, sub {
         my $xml = XMLin($data);
         for my $item (@{$xml->{item}}) {
             my $item_timestamp = Time::Piece->strptime($item->{'dc:date'}, '%Y-%m-%dT%H:%M:%SZ')->epoch;
-            next if LATEST_TIMESTAMP() > $item_timestamp;
+            next if LATEST_TIMESTAMP() >= $item_timestamp;
             LATEST_TIMESTAMP($item_timestamp);
 
             my ($namespace, $version) = do {
