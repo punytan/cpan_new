@@ -1,5 +1,8 @@
 Revision history for Perl extension App::Twitter::CPAN
 
+0.04    Tue Apr  7 08:21:02 2015
+        - post distname (not namespace)
+
 0.03    Tue Apr  7 03:30:55 2015
         - fix condition
 
