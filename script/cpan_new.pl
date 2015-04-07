@@ -1,11 +1,13 @@
 use strict;
 use warnings;
+use constant MARKER_FILE => "$ENV{HOME}/.cpan_new_timestamp";
+use XML::Simple;
+use Time::Piece;
 use Data::Dumper;
 use JSON;
 use AnyEvent;
 use AnyEvent::HTTP;
 use AnyEvent::Twitter;
-use AnyEvent::FriendFeed::Realtime;
 use Config::PP;
 use AnyEvent::Log;
 use EV;
@@ -16,28 +18,37 @@ our @Q;
 GetOptions('config-dir=s' => \$Config::PP::DIR)
     or die "Invalid arguments";
 
-my $OAuth  = config_get "cpan_new.twitter.com";
-my $twitty = AnyEvent::Twitter->new(%$OAuth);
+my $twitty = do {
+    my $OAuth  = config_get "cpan_new.twitter.com";
+    AnyEvent::Twitter->new(%$OAuth);
+};
 
-our $CLIENT;
-my $w; $w = AE::timer 1, 10, sub {
-    return if $CLIENT->{guard};
+my $w; $w = AE::timer 1, 30, sub {
+    AE::log info => 'start crawling';
+    http_get "https://metacpan.org/feed/recent", sub {
+        my ($data, $headers) = @_;
+        unless ($data) {
+            AE::log info => Dumper $headers;
+            return;
+        }
 
-    AE::log info => 'start connecting';
-    $CLIENT = AnyEvent::FriendFeed::Realtime->new(
-        request  => "/feed/cpan",
-        on_entry => sub {
-            if (my $error = on_entry(@_)) {
-                $twitty->post('statuses/update', { status => sprintf '@punytan error: %s (%s)', $error, time }, sub {
-                    AE::log info => Dumper [ @_ ];
-                });
-            }
-        },
-        on_error => sub {
-            AE::log info => Dumper [@_];
-            undef $CLIENT;
-        },
-    );
+        my $xml = XMLin($data);
+        for my $item (@{$xml->{item}}) {
+            my $item_timestamp = Time::Piece->strptime($item->{'dc:date'}, '%Y-%m-%dT%H:%M:%SZ')->epoch;
+            next if LATEST_TIMESTAMP() > $item_timestamp;
+            LATEST_TIMESTAMP($item_timestamp);
+
+            my ($namespace, $version) = do {
+                my @dist      = split /-/, $item->{title};
+                my $version   = pop @dist;
+                my $namespace = join "::", @dist;
+                ($namespace, $version)
+            };
+
+            tweet("$namespace $version by $item->{'dc:creator'} $item->{link}");
+        }
+
+    }
 };
 
 my $qwatcher; $qwatcher = AE::timer 5, 300, sub {
@@ -46,59 +57,7 @@ my $qwatcher; $qwatcher = AE::timer 5, 300, sub {
 };
 
 AE::log info => 'recv';
-
 AE::cv->recv;
-
-sub on_entry {
-    my $entry = shift;
-
-    my %params = parse_body($entry)
-        or return 'ParseError';
-
-    my $string = construct_status(%params)->{string};
-
-    tweet($string);
-
-    return;
-}
-
-sub parse_body {
-    my $entry = shift;
-
-    my ($package, $author, $url) = $entry->{body} =~ m{^(.+) by (.+) - <a rel="nofollow" href="([^"]+)}
-        or return;
-
-    my ($pauseid, $file) = $url =~ m{authors/id/[A-Z]/[A-Z]{2}/([A-Z]+)/(.+)\.tar\.gz}
-        or return;
-
-    my $id = lc $pauseid;
-
-    if ($file =~ m{.*/(.*)$}) {
-        $file = $1;
-    }
-
-    return (
-        package => $package,
-        author  => $author,
-        url     => $url,
-        pauseid => $pauseid,
-        id      => $id,
-        file    => $file,
-    );
-}
-
-sub construct_status {
-    my %params = @_;
-
-    my $metacpan = sprintf 'http://metacpan.org/release/%s/%s/', $params{pauseid}, $params{file};
-    my $string   = sprintf "%s by %s - %s", $params{package}, $params{pauseid}, $metacpan;
-
-    return {
-        %params,
-        metacpan => $metacpan,
-        string   => $string,
-    };
-}
 
 sub tweet {
     my $string = shift;
@@ -110,6 +69,21 @@ sub tweet {
             push @Q, $string; # on error, push it to queue
         }
     });
+}
+
+sub LATEST_TIMESTAMP {
+    my $epoch = shift;
+    if ($epoch) {
+        return -e MARKER_FILE ? utime $epoch, $epoch, MARKER_FILE : do {
+            open my $fh, ">", MARKER_FILE or die $!;
+            utime $epoch, $epoch, MARKER_FILE
+        }
+    } else {
+        return -e MARKER_FILE ? (stat MARKER_FILE)[9] : do {
+            open my $fh, ">", MARKER_FILE or die $!;
+            (stat MARKER_FILE)[9]
+        }
+    }
 }
 
 __END__

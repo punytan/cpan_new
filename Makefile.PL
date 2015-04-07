@@ -4,11 +4,12 @@ all_from 'lib/App/Twitter/CPAN.pm';
 
 requires 'EV';
 requires 'AnyEvent';
-requires 'AnyEvent::FriendFeed::Realtime';
 requires 'AnyEvent::HTTP';
 requires 'AnyEvent::Twitter';
 requires 'Config::PP';
 requires 'JSON';
+requires 'XML::Simple';
+requires 'Time::Piece';
 
 
 tests 't/*.t';
