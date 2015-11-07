@@ -37,7 +37,8 @@ my $w; $w = AE::timer 1, 30, sub {
             my $item_timestamp = Time::Piece->strptime($item->{'dc:date'}, '%Y-%m-%dT%H:%M:%SZ')->epoch;
             next if LATEST_TIMESTAMP() >= $item_timestamp;
             LATEST_TIMESTAMP($item_timestamp);
-            tweet("$item->{title} by $item->{'dc:creator'} $item->{link}");
+            my $title = sprintf "%-.80s...", $item->{title};
+            tweet("$title by $item->{'dc:creator'} $item->{link}");
         }
 
     }
