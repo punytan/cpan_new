@@ -1,5 +1,8 @@
 Revision history for Perl extension App::Twitter::CPAN
 
+0.05    Sun Nov  8 07:26:45 2015
+        - snip long distname
+
 0.04    Tue Apr  7 08:21:02 2015
         - post distname (not namespace)
 
