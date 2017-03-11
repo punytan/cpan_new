@@ -12,6 +12,7 @@ use Config::PP;
 use AnyEvent::Log;
 use EV;
 use Getopt::Long;
+use HTTP::Tiny;
 $AnyEvent::Log::FILTER->level("info");
 our @Q;
 
@@ -38,7 +39,11 @@ my $w; $w = AE::timer 1, 30, sub {
             next if LATEST_TIMESTAMP() >= $item_timestamp;
             LATEST_TIMESTAMP($item_timestamp);
             my $title = sprintf "%-.80s", $item->{title};
-            tweet("$title by $item->{'dc:creator'} $item->{link}");
+
+            my $twitter_username = get_twitter_username($item->{'dc:creator'});
+            my $addition = $twitter_username ? '/@' . $twitter_username : '';
+
+            tweet("$title by $item->{'dc:creator'}$addition $item->{link}");
         }
 
     }
@@ -77,6 +82,33 @@ sub LATEST_TIMESTAMP {
             (stat MARKER_FILE)[9]
         }
     }
+}
+
+sub get_twitter_username {
+    my $cpan_author_name = shift;
+
+    my $twitter_username;
+
+    eval {
+        my $response = HTTP::Tiny->new()->get(
+            "https://api.metacpan.org/v0/author/$cpan_author_name"
+        );
+
+        my $data = decode_json $response->{content};
+
+        foreach my $el (@{$data->{profile}}) {
+            if ($el->{name} eq 'twitter') {
+                $twitter_username = $el->{id};
+
+                # The most common use that there is no @ in the twitter username,
+                # but some users have @, for example https://api.metacpan.org/v0/author/MANWAR
+                $twitter_username =~ s/^\@//;
+                last;
+            }
+        }
+    };
+
+    return $twitter_username;
 }
 
 __END__
